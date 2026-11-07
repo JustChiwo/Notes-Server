@@ -10,6 +10,10 @@ async function signup(req, res) {
       return res.status(400).json({ message: 'Email and password are required.' });
     }
 
+    if (typeof password !== 'string' || password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters.' });
+    }
+
     const { error } = await supabase.auth.signUp({ email, password });
 
     if (error) {
