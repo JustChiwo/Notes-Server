@@ -24,9 +24,10 @@ To make that work, the server uses Supabase's publishable key and passes the sig
    SUPABASE_PUBLISHABLE_KEY=your-publishable-key
    PORT=5000
    CLIENT_URL=http://localhost:5173
+   NODE_ENV=development
    ```
 
-   `PORT` and `CLIENT_URL` are optional. If you leave them out, the server uses 5000 and `http://localhost:5173`.
+   `PORT`, `CLIENT_URL`, and `NODE_ENV` are optional for local development. If you leave them out, the server uses port 5000, allows `http://localhost:5173`, and runs in development mode.
 
    I only use the publishable key here. The secret (service role) key is never used, because it would bypass RLS and defeat the point of the project.
 
@@ -37,6 +38,12 @@ To make that work, the server uses Supabase's publishable key and passes the sig
    ```
 
 The server runs on port 5000 by default. Open `http://localhost:5000/` in your browser to check that it's working.
+
+## Deploying to Render
+
+Set `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and `CLIENT_URL` in the Render service's environment variables. Set `CLIENT_URL` to the full origin of the deployed frontend, without a path. Set `NODE_ENV=production`; Render provides `PORT`.
+
+In production, the `token` cookie is HTTP-only, secure, and uses `sameSite: 'none'` so it can be sent between the frontend and backend on different domains. Locally, it uses `secure: false` and `sameSite: 'lax'` to work over HTTP. The server trusts Render's proxy so secure cookies work correctly behind it.
 
 ## Authentication API
 
@@ -82,8 +89,6 @@ The access token is **not** in the response body. It's stored in an HTTP-only co
 
 A wrong password returns `401`, and a missing email or password returns `400`.
 
-The cookie is set up for local development over HTTP (`secure: false`). When the app is deployed over HTTPS, `secure` needs to be `true`. If the frontend and backend end up on different domains, `sameSite` will need to change to `none` as well.
-
 ### Log out
 
 `POST /api/auth/logout`
@@ -98,9 +103,46 @@ Clears the `token` cookie and returns:
 
 Logging out removes the cookie from the browser. It does not cancel the access token on Supabase's side, so the token itself stays valid until it expires.
 
+## Notes API
+
+All notes endpoints require the `token` cookie from login. The frontend must send requests with credentials enabled. Notes are scoped to the signed-in user.
+
+### List notes
+
+`GET /api/notes`
+
+Returns the user's notes, newest first.
+
+### Create a note
+
+`POST /api/notes`
+
+Send a non-empty `title` and `content`:
+
+```json
+{
+  "title": "A note",
+  "content": "Note content"
+}
+```
+
+The server trims both fields before saving. Missing or blank titles and content return `400`.
+
+### Update a note
+
+`PUT /api/notes/:id`
+
+Send the fields to update. Both `title` and `content` are optional, but any provided value must be a non-empty string. The server trims provided values before saving. A note that cannot be found returns `404`.
+
+### Delete a note
+
+`DELETE /api/notes/:id`
+
+Deletes the note and returns `{ "message": "Note deleted successfully." }`. A note that cannot be found returns `404`.
+
 ## Using the API from a frontend
 
-CORS is set up to allow requests from `CLIENT_URL` (by default `http://localhost:5173`) and to allow cookies. Because the token lives in a cookie, the frontend has to include credentials in every request. For example:
+CORS is set up to allow requests from `CLIENT_URL` (by default `http://localhost:5173`) and to allow cookies. Any trailing slash in `CLIENT_URL` is removed. Because the token lives in a cookie, the frontend has to include credentials in every request. For example:
 
 ```js
 fetch('http://localhost:5000/api/auth/login', {
@@ -117,7 +159,7 @@ Any route that doesn't exist returns a `404` with `{ "message": "Route not found
 
 ```text
 config/       Supabase client setup
-controllers/  Request handlers for authentication
+controllers/  Request handlers for authentication and notes
 routes/       API routes
 app.js        Express app and server startup
 ```
