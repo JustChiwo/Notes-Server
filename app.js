@@ -8,8 +8,10 @@ const authRoutes = require('./routes/authRoutes');
 const notesRoutes = require('./routes/notesRoutes');
 
 const app = express();
+// Render sits behind a proxy, so secure cookies need this.
+app.set('trust proxy', 1);
 const port = process.env.PORT || 5000;
-const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+const clientUrl = (process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/+$/, '');
 
 app.use(cors({
   origin: clientUrl,
@@ -34,4 +36,5 @@ app.use((req, res) => {
 // Start the server on the configured port.
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
+  console.log(`Running in ${process.env.NODE_ENV === 'production' ? 'production' : 'development'} mode`);
 });

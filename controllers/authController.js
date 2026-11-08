@@ -1,6 +1,12 @@
 // Use the base client for the public authentication endpoints.
 const { supabase } = require('../config/supabase');
 
+const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+};
+
 // Create a new account with Supabase Auth.
 async function signup(req, res) {
   try {
@@ -42,11 +48,9 @@ async function login(req, res) {
       return res.status(401).json({ message: error.message });
     }
 
-    // Secure must be true when the app is deployed over HTTPS in production.
+    // Use cross-site cookies in production.
     res.cookie('token', data.session.access_token, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: false,
+      ...cookieOptions,
       maxAge: 60 * 60 * 1000,
     });
 
@@ -65,11 +69,7 @@ async function login(req, res) {
 // Remove the sign-in cookie from the browser.
 function logout(req, res) {
   try {
-    res.clearCookie('token', {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: false,
-    });
+    res.clearCookie('token', cookieOptions);
 
     return res.status(200).json({ message: 'Logout successful.' });
   } catch (error) {

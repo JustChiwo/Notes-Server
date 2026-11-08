@@ -29,11 +29,15 @@ async function createNote(req, res) {
       return res.status(400).json({ message: 'Title is required.' });
     }
 
+    if (typeof content !== 'string' || !content.trim()) {
+      return res.status(400).json({ message: 'Content is required.' });
+    }
+
     const { data, error } = await getUserClient(req.token)
       .from('notes')
       .insert({
-        title,
-        content: content === undefined ? '' : content,
+        title: title.trim(),
+        content: content.trim(),
         user_id: req.user.id,
       })
       .select()
@@ -59,9 +63,13 @@ async function updateNote(req, res) {
       return res.status(400).json({ message: 'Title cannot be empty.' });
     }
 
+    if (content !== undefined && (typeof content !== 'string' || !content.trim())) {
+      return res.status(400).json({ message: 'Content is required.' });
+    }
+
     const updates = {};
-    if (title !== undefined) updates.title = title;
-    if (content !== undefined) updates.content = content;
+    if (title !== undefined) updates.title = title.trim();
+    if (content !== undefined) updates.content = content.trim();
 
     const { data, error } = await getUserClient(req.token)
       .from('notes')
